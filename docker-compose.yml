@@ -1,0 +1,40 @@
+
+services:
+  keycloak-w:
+    image: bitnami/keycloak:26.0.7
+    container_name: keycloak-w
+    ports:
+      - "443:8443" # HTTPS port
+      - "80:8080"  # HTTP port (optional, for Let's Encrypt)
+    restart: unless-stopped
+    volumes:
+      - ./certs:/opt/bitnami/keycloak/certs:ro # Mount certificates
+      - ./realms/fido-realm.json:/opt/bitnami/keycloak/data/import/fido-realm.json:ro # Mount realm JSON
+    env_file:
+      - .env # Environment variables for Keycloak
+    depends_on:
+      - postgres-w
+    networks:
+      - web-network
+
+  postgres-w:
+    image: postgres:15
+    container_name: postgres-w
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak_db
+      POSTGRES_USER: keycloak_user
+      POSTGRES_PASSWORD: keycloak_password
+    ports:
+      - "5433:5432" # PostgreSQL port
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - web-network
+
+networks:
+  web-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
