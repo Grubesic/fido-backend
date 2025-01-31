@@ -1,0 +1,59 @@
+services:
+  # -----------------------------
+  # 1) PostgreSQL Database
+  # -----------------------------
+  ejbca-db:
+    image: postgres:15
+    container_name: ejbca-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ejbca
+      POSTGRES_USER: ejbca_user
+      POSTGRES_PASSWORD: ejbca_pass
+    volumes:
+      - ejbca-db-data:/var/lib/postgresql/data
+    networks:
+      - ejbca-network
+
+  # -----------------------------
+  # 2) EJBCA Community Edition
+  # -----------------------------
+  ejbca-ce:
+    image: keyfactor/ejbca-ce:latest
+    container_name: ejbca-ce
+    restart: unless-stopped
+    depends_on:
+      - ejbca-db
+    environment:
+      # --- DB Configuration ---
+      DATABASE_JDBC_URL: "jdbc:postgresql://ejbca-db:5432/ejbca"
+      DATABASE_USER: "ejbca_user"
+      DATABASE_PASSWORD: "ejbca_pass"
+
+      # --- Basic Security Vars (set real secrets in production!) ---
+      PASSWORD_ENCRYPTION_KEY: "supersecret"
+      CA_KEYSTOREPASS: "anothersecret"
+      EJBCA_CLI_DEFAULTPASSWORD: "changeit"
+
+      # --- TLS Setup Mode ---
+      # "true" => EJBCA creates a Management CA for server & initial client cert
+      # "simple" => EJBCA creates only server cert, no client cert check
+      # "later"/"false" => expect TLS from a reverse proxy
+      TLS_SETUP_ENABLED: "true"
+
+      # Optional: Set the container's own hostname logic
+      # e.g., if you want your admin UI to reference a domain name
+      # HTTPSERVER_HOSTNAME: "myca.local"
+
+    ports:
+      - "8080:8080"  # HTTP
+      - "8443:8443"  # HTTPS / Admin UI
+    networks:
+      - ejbca-network
+
+networks:
+  ejbca-network:
+    driver: bridge
+
+volumes:
+  ejbca-db-data:
